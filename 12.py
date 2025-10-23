@@ -42,17 +42,6 @@ def strategy_A(rounds, n=100):
         combinations.append(sorted(combo))
     return combinations
 
-def strategy_B(rounds, n=100):
-    """Wheel combinational: nucleu fix + variații"""
-    freq = freq_from_rounds(rounds)
-    core = [x for x, _ in sorted(freq.items(), key=lambda x: -x[1])[:5]]
-    pool = [x for x in range(1, 67) if x not in core]
-    combinations = []
-    for i in range(n):
-        combo = core + random.sample(pool, 4)
-        combinations.append(sorted(combo))
-    return combinations
-
 def strategy_C(rounds, n=100):
     """Random echilibrat (4-5 pare, 3/3/3 pe zone)"""
     combinations = []
