@@ -28,10 +28,10 @@ def random_combination(low=1, high=66, size=9):
 # -------------------------------
 # 🔹 Strategii de generare
 # -------------------------------
-def strategy_A(rounds, n=100):
+def strategy_A(rounds, n=1400):
     """Greedy diversification: mix calde, medii, reci"""
     freq = freq_from_rounds(rounds)
-    sorted_nums = sorted(freq.items(), key=lambda x: x[1], reverse=false)
+    sorted_nums = sorted(freq.items(), key=lambda x: x[1], reverse=True)
     hot = [x[0] for x in sorted_nums[:25]]
     mid = [x[0] for x in sorted_nums[23:40]]
     cold = [x[0] for x in sorted_nums[-17:]]
