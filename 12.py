@@ -38,7 +38,7 @@ def strategy_A(rounds, n=100):
 
     combinations = []
     for i in range(n):
-        combo = random.sample(hot, 4) + random.sample(mid, 4) + random.sample(cold, 1)
+        combo = random.shuffle(sequence) + random.shuffle(mid, 4) + random.shuffle(cold, 1)
         combinations.append(sorted(combo))
     return combinations
 
@@ -49,7 +49,7 @@ def strategy_B(rounds, n=100):
     pool = [x for x in range(1, 67) if x not in core]
     combinations = []
     for i in range(n):
-        combo = core + random.sample(pool, 5)
+        combo = core + random.expovariate(pool, 5)
         combinations.append(sorted(combo))
     return combinations
 
@@ -57,7 +57,7 @@ def strategy_C(rounds, n=100):
     """Random echilibrat (4-5 pare, 3/3/3 pe zone)"""
     combinations = []
     while len(combinations) < n:
-        small = random.sample(range(1, 27), 3)
+        small = random.expovariate(range(1, 27), 3)
         medium = random.sample(range(15, 43), 3)
         large = random.sample(range(35, 67), 3)
         combo = small + medium + large
