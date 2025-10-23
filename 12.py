@@ -25,6 +25,20 @@ def random_combination(low=1, high=66, size=9):
     """Generează o combinație unică de 9 numere sortate"""
     return sorted(random.sample(range(low, high + 1), size))
 
+def overlap(a, b):
+    """Câte numere comune au două combinații"""
+    return len(set(a).intersection(b))
+
+def filter_diverse_variants(variants, max_overlap=4):
+    """Filtrează variantele prea asemănătoare între ele"""
+    diverse = []
+    for combo in variants:
+        if all(overlap(combo, x) <= max_overlap for x in diverse):
+            diverse.append(combo)
+        if len(diverse) >= len(variants):
+            break
+    return diverse
+
 # -------------------------------
 # 🔹 Strategii de generare
 # -------------------------------
@@ -37,7 +51,7 @@ def strategy_A(rounds, n=100):
     cold = [x[0] for x in sorted_nums[-15:]]
 
     combinations = []
-    for i in range(n):
+    for i in range(n * 3):  # generăm mai multe ca să filtrăm
         combo = random.sample(hot, 3) + random.sample(mid, 3) + random.sample(cold, 3)
         combinations.append(sorted(combo))
     return combinations
@@ -48,7 +62,7 @@ def strategy_B(rounds, n=100):
     core = [x for x, _ in sorted(freq.items(), key=lambda x: -x[1])[:5]]
     pool = [x for x in range(1, 67) if x not in core]
     combinations = []
-    for i in range(n):
+    for i in range(n * 3):
         combo = core + random.sample(pool, 4)
         combinations.append(sorted(combo))
     return combinations
@@ -56,7 +70,7 @@ def strategy_B(rounds, n=100):
 def strategy_C(rounds, n=100):
     """Random echilibrat (4-5 pare, 3/3/3 pe zone)"""
     combinations = []
-    while len(combinations) < n:
+    while len(combinations) < n * 3:
         small = random.sample(range(1, 23), 3)
         medium = random.sample(range(23, 45), 3)
         large = random.sample(range(45, 67), 3)
@@ -82,6 +96,7 @@ strategy = st.sidebar.selectbox(
      "C - Random echilibrat (par/impar, 3/3/3)"]
 )
 num_variants = st.sidebar.number_input("Număr variante de generat:", 10, 5000, 1600)
+max_overlap = st.sidebar.slider("Suprapunere maximă permisă între variante:", 0, 8, 4)
 
 # -------------------------------
 # 🔹 Import runde
@@ -110,24 +125,28 @@ st.success(f"✅ {len(rounds)} runde încărcate.")
 st.subheader("🧠 Generare variante")
 if st.button("Generează variante"):
     if strategy.startswith("A"):
-        results = strategy_A(rounds, num_variants)
+        base_results = strategy_A(rounds, num_variants)
     elif strategy.startswith("B"):
-        results = strategy_B(rounds, num_variants)
+        base_results = strategy_B(rounds, num_variants)
     else:
-        results = strategy_C(rounds, num_variants)
+        base_results = strategy_C(rounds, num_variants)
+
+    # Aplică filtrul de diversitate
+    diverse_results = filter_diverse_variants(base_results, max_overlap=max_overlap)
+    diverse_results = diverse_results[:num_variants]
 
     df = pd.DataFrame({
-        "ID": range(1, len(results)+1),
-        "Combinație": [" ".join(map(str, r)) for r in results]
+        "ID": range(1, len(diverse_results)+1),
+        "Combinație": [" ".join(map(str, r)) for r in diverse_results]
     })
 
-    st.write(f"🔹 Au fost generate **{len(df)}** variante.")
+    st.write(f"🔹 Au fost generate **{len(df)}** variante după filtrarea diversității (max overlap = {max_overlap}).")
 
     # Preview
     st.dataframe(df.head(10), use_container_width=True, height=300)
 
     # Copy all
-    txt_output = "\n".join([f"{i+1}, {' '.join(map(str, combo))}" for i, combo in enumerate(results)])
+    txt_output = "\n".join([f"{i+1}, {' '.join(map(str, combo))}" for i, combo in enumerate(diverse_results)])
     st.text_area("📋 Copy all", txt_output, height=200)
 
     # Export .txt
