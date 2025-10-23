@@ -57,12 +57,12 @@ def strategy_C(rounds, n=100):
     """Random echilibrat (4-5 pare, 3/3/3 pe zone)"""
     combinations = []
     while len(combinations) < n:
-        small = random.sample(range(1, 33), 4)
-        medium = random.sample(range(23, 66), 4)
+        small = random.sample(range(1, 19), 4)
+        medium = random.sample(range(23, 39), 4)
         large = random.sample(range(48, 63), 1)
         combo = small + medium + large
         random.shuffle(combo)
-        if 4 <= sum(x % 2 == 0 for x in combo) <= 5:
+        if 4 <= sum(x % 2 == 0 for x in combo) <= 3:
             combinations.append(sorted(combo))
     return combinations
 
