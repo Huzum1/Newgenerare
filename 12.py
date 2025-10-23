@@ -38,7 +38,7 @@ def strategy_A(rounds, n=100):
 
     combinations = []
     for i in range(n):
-        combo = random.shuffle(sequence) + random.shuffle(mid, 4) + random.shuffle(cold, 1)
+        combo = random.shuffle(hot, 3) + random.shuffle(mid, 4) + random.shuffle(cold, 2)
         combinations.append(sorted(combo))
     return combinations
 
