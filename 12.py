@@ -28,21 +28,7 @@ def random_combination(low=1, high=66, size=9):
 # -------------------------------
 # 🔹 Strategii de generare
 # -------------------------------
-def strategy_A(rounds, n=350):
-    """Greedy diversification: mix calde, medii, reci"""
-    freq = freq_from_rounds(rounds)
-    sorted_nums = sorted(freq.items(), key=lambda x: x[1], reverse=True)
-    hot = [x[0] for x in sorted_nums[:15]]
-    mid = [x[0] for x in sorted_nums[15:40]]
-    cold = [x[0] for x in sorted_nums[-25:]]
-
-    combinations = []
-    for i in range(n):
-        combo = random.sample(hot, 3) + random.sample(mid, 3) + random.sample(cold, 3)
-        combinations.append(sorted(combo))
-    return combinations
-
-def strategy_C(rounds, n=450):
+def strategy_C(rounds, n=999):
     """Random echilibrat (4-5 pare, 3/3/3 pe zone)"""
     combinations = []
     while len(combinations) < n:
