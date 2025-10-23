@@ -119,21 +119,3 @@ if st.button("Generează variante"):
                        file_name="variante_keno.txt", mime="text/plain")
 
     st.session_state["tickets"] = all_tickets
-
-# ----------------------------
-# Simulare Monte Carlo
-# ----------------------------
-st.subheader("🎲 Monte-Carlo Simulator")
-if "tickets" not in st.session_state:
-    st.info("Generează mai întâi variantele pentru a simula.")
-else:
-    if st.button("Rulează simulare"):
-        results = simulate_many_rounds(st.session_state["tickets"], n_rounds=sim_rounds, seed=seed or None)
-
-        st.success(f"✅ Simulare finalizată ({results['rounds']} runde).")
-        st.write(f"📈 Probabilitate ≥1 câștig: **{results['p_ge1']*100:.2f}%**")
-        st.write(f"📈 Probabilitate ≥2 câștiguri: **{results['p_ge2']*100:.2f}%**")
-        st.write(f"📊 Medie câștiguri / rundă: **{results['avg_wins']:.3f}**")
-
-        st.write("Distribuția numărului de câștiguri:")
-        st.bar_chart(results["distribution"].sort_index())
