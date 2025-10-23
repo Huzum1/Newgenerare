@@ -4,7 +4,6 @@ import pandas as pd
 import random
 from io import StringIO
 import matplotlib.pyplot as plt
-from keno_simulator import simulate_many_rounds
 
 st.set_page_config(page_title="🎯 Keno Strategy Generator + Simulator", layout="wide")
 
