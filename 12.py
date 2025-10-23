@@ -32,13 +32,13 @@ def strategy_A(rounds, n=1400):
     """Greedy diversification: mix calde, medii, reci"""
     freq = freq_from_rounds(rounds)
     sorted_nums = sorted(freq.items(), key=lambda x: x[1], reverse=True)
-    hot = [x[0] for x in sorted_nums[:25]]
-    mid = [x[0] for x in sorted_nums[23:40]]
-    cold = [x[0] for x in sorted_nums[-17:]]
+    hot = [x[0] for x in sorted_nums[:35]]
+    mid = [x[0] for x in sorted_nums[1:40]]
+    cold = [x[0] for x in sorted_nums[-9:]]
 
     combinations = []
     for i in range(n):
-        combo = random.sample(hot, 5) + random.sample(mid, 2) + random.sample(cold, 2)
+        combo = random.sample(hot, 4) + random.sample(mid, 4) + random.sample(cold, 1)
         combinations.append(sorted(combo))
     return combinations
 
@@ -57,9 +57,9 @@ def strategy_C(rounds, n=100):
     """Random echilibrat (4-5 pare, 3/3/3 pe zone)"""
     combinations = []
     while len(combinations) < n:
-        small = random.sample(range(1, 23), 3)
-        medium = random.sample(range(23, 45), 3)
-        large = random.sample(range(45, 67), 3)
+        small = random.sample(range(1, 33), 4)
+        medium = random.sample(range(23, 66), 4)
+        large = random.sample(range(48, 63), 1)
         combo = small + medium + large
         random.shuffle(combo)
         if 4 <= sum(x % 2 == 0 for x in combo) <= 5:
