@@ -3,156 +3,137 @@ import streamlit as st
 import pandas as pd
 import random
 from io import StringIO
+import matplotlib.pyplot as plt
+from keno_simulator import simulate_many_rounds
 
-# -------------------------------
-# 🔹 Funcții de utilitate
-# -------------------------------
+st.set_page_config(page_title="🎯 Keno Strategy Generator + Simulator", layout="wide")
+
+# ----------------------------
+# Funcții utilitare
+# ----------------------------
 def parse_rounds(text):
-    """Transformă textul de runde în listă de liste de numere"""
     rounds = []
-    for line in text.strip().split("\n"):
-        numbers = [int(x.strip()) for x in line.replace(",", " ").split() if x.strip().isdigit()]
-        if numbers:
-            rounds.append(numbers)
+    for line in text.strip().splitlines():
+        nums = [int(x) for x in line.replace(",", " ").split() if x.isdigit()]
+        if nums:
+            rounds.append(nums)
     return rounds
 
 def freq_from_rounds(rounds):
-    """Returnează un dict {număr: frecvență}"""
     flat = [n for r in rounds for n in r]
-    return pd.Series(flat).value_counts().to_dict()
+    s = pd.Series(flat).value_counts().to_dict()
+    for i in range(1, 67):
+        s.setdefault(i, 0)
+    return dict(sorted(s.items()))
 
-def random_combination(low=1, high=66, size=9):
-    """Generează o combinație unică de 9 numere sortate"""
-    return sorted(random.sample(range(low, high + 1), size))
-
-def overlap(a, b):
-    """Câte numere comune au două combinații"""
-    return len(set(a).intersection(b))
-
-def filter_diverse_variants(variants, max_overlap=4):
-    """Filtrează variantele prea asemănătoare între ele"""
-    diverse = []
-    for combo in variants:
-        if all(overlap(combo, x) <= max_overlap for x in diverse):
-            diverse.append(combo)
-        if len(diverse) >= len(variants):
-            break
-    return diverse
-
-# -------------------------------
-# 🔹 Strategii de generare
-# -------------------------------
-def strategy_A(rounds, n=100):
-    """Greedy diversification: mix calde, medii, reci"""
-    freq = freq_from_rounds(rounds)
-    sorted_nums = sorted(freq.items(), key=lambda x: x[1], reverse=True)
-    hot = [x[0] for x in sorted_nums[:15]]
-    mid = [x[0] for x in sorted_nums[15:40]]
-    cold = [x[0] for x in sorted_nums[-15:]]
-
-    combinations = []
-    for i in range(n * 3):  # generăm mai multe ca să filtrăm
-        combo = random.sample(hot, 3) + random.sample(mid, 3) + random.sample(cold, 3)
-        combinations.append(sorted(combo))
-    return combinations
-
-def strategy_B(rounds, n=100):
-    """Wheel combinational: nucleu fix + variații"""
-    freq = freq_from_rounds(rounds)
-    core = [x for x, _ in sorted(freq.items(), key=lambda x: -x[1])[:5]]
-    pool = [x for x in range(1, 67) if x not in core]
-    combinations = []
-    for i in range(n * 3):
-        combo = core + random.sample(pool, 4)
-        combinations.append(sorted(combo))
-    return combinations
-
-def strategy_C(rounds, n=100):
-    """Random echilibrat (4-5 pare, 3/3/3 pe zone)"""
-    combinations = []
-    while len(combinations) < n * 3:
+def strategy_diverse(n=800):
+    """3/3/3 + echilibru par/impar"""
+    tickets = []
+    while len(tickets) < n:
         small = random.sample(range(1, 23), 3)
         medium = random.sample(range(23, 45), 3)
         large = random.sample(range(45, 67), 3)
-        combo = small + medium + large
-        random.shuffle(combo)
+        combo = sorted(small + medium + large)
         if 4 <= sum(x % 2 == 0 for x in combo) <= 5:
-            combinations.append(sorted(combo))
-    return combinations
+            tickets.append(combo)
+    return tickets
 
-# -------------------------------
-# 🔹 UI Streamlit
-# -------------------------------
-st.set_page_config(page_title="Keno Strategy Generator", layout="wide")
-st.title("🎯 Keno Strategy Generator (6/9 Format)")
+def strategy_wheel(rounds, n=480):
+    """Wheel cu mai multe nuclee diferite."""
+    freq = freq_from_rounds(rounds)
+    sorted_nums = sorted(freq, key=freq.get, reverse=True)
+    core_sets = [
+        sorted_nums[:5],
+        sorted_nums[5:10],
+        sorted_nums[10:15],
+        sorted_nums[-10:-5],
+        sorted_nums[-5:],
+        random.sample(sorted_nums, 5)
+    ]
+    pool = list(range(1, 67))
+    tickets = []
+    per_core = n // len(core_sets)
+    for core in core_sets:
+        for _ in range(per_core):
+            extra = random.sample([x for x in pool if x not in core], 4)
+            combo = sorted(core + extra)
+            tickets.append(combo)
+    return tickets
+
+def strategy_random_equilibrat(n=320):
+    """Random echilibrat simplu."""
+    tickets = []
+    while len(tickets) < n:
+        combo = random.sample(range(1, 67), 9)
+        if 4 <= sum(x % 2 == 0 for x in combo) <= 5:
+            tickets.append(sorted(combo))
+    return tickets
+
+# ----------------------------
+# Interfață
+# ----------------------------
+st.title("🎯 Keno 6/9 Strategy Generator + Monte-Carlo Simulator")
 
 st.sidebar.header("⚙️ Configurare")
+num_variants = st.sidebar.number_input("Număr total variante", 100, 5000, 1600)
+sim_rounds = st.sidebar.number_input("Simulări Monte-Carlo", 1000, 50000, 10000, step=1000)
+seed = st.sidebar.number_input("Seed (0 = aleator)", 0, 999999, 0)
+if seed != 0:
+    random.seed(seed)
 
-# Alegere strategie
-strategy = st.sidebar.selectbox(
-    "Alege strategia de generare:",
-    ["A - Echilibru ponderat (calde/reci)", 
-     "B - Wheel (nucleu fix + variații)",
-     "C - Random echilibrat (par/impar, 3/3/3)"]
-)
-num_variants = st.sidebar.number_input("Număr variante de generat:", 10, 5000, 1600)
-max_overlap = st.sidebar.slider("Suprapunere maximă permisă între variante:", 0, 8, 4)
-
-# -------------------------------
-# 🔹 Import runde
-# -------------------------------
-st.subheader("📂 Importă sau adaugă runde precedente")
-uploaded_file = st.file_uploader("Încarcă fișier .txt cu runde (format: 1, 2, 3, ...)", type="txt")
-
-manual_input = st.text_area("Adaugă runde manual (una pe linie, format: 2, 5, 7, 13, ...):")
+# Import runde
+st.subheader("📂 Importă runde anterioare")
+uploaded = st.file_uploader("Încarcă fișier .txt (format: 1, 2, 3, ...)", type=["txt"])
+manual = st.text_area("Adaugă manual runde (una pe linie, format: 2, 5, 7, 13, ...):")
 
 rounds = []
-if uploaded_file:
-    text_data = uploaded_file.read().decode("utf-8")
-    rounds = parse_rounds(text_data)
-elif manual_input.strip():
-    rounds = parse_rounds(manual_input)
+if uploaded:
+    content = uploaded.read().decode("utf-8")
+    rounds = parse_rounds(content)
+if manual.strip():
+    rounds += parse_rounds(manual)
 
 if not rounds:
-    st.warning("🔸 Încarcă sau introdu cel puțin o rundă pentru a continua.")
-    st.stop()
+    st.warning("⚠️ Nu ai încărcat runde. Se va genera cu distribuție uniformă.")
+else:
+    st.success(f"{len(rounds)} runde încărcate pentru analiză frecvență.")
 
-st.success(f"✅ {len(rounds)} runde încărcate.")
-
-# -------------------------------
-# 🔹 Generare combinații
-# -------------------------------
-st.subheader("🧠 Generare variante")
+# ----------------------------
+# Generare variante
+# ----------------------------
+st.subheader("🧩 Generare 1600 variante (50% Diverse, 30% Wheel, 20% Random)")
 if st.button("Generează variante"):
-    if strategy.startswith("A"):
-        base_results = strategy_A(rounds, num_variants)
-    elif strategy.startswith("B"):
-        base_results = strategy_B(rounds, num_variants)
-    else:
-        base_results = strategy_C(rounds, num_variants)
+    diverse = strategy_diverse(n=int(num_variants * 0.5))
+    wheel = strategy_wheel(rounds, n=int(num_variants * 0.3))
+    rand = strategy_random_equilibrat(n=int(num_variants * 0.2))
 
-    # Aplică filtrul de diversitate
-    diverse_results = filter_diverse_variants(base_results, max_overlap=max_overlap)
-    diverse_results = diverse_results[:num_variants]
-
+    all_tickets = diverse + wheel + rand
     df = pd.DataFrame({
-        "ID": range(1, len(diverse_results)+1),
-        "Combinație": [" ".join(map(str, r)) for r in diverse_results]
+        "ID": range(1, len(all_tickets) + 1),
+        "Combinație": [" ".join(map(str, c)) for c in all_tickets]
     })
 
-    st.write(f"🔹 Au fost generate **{len(df)}** variante după filtrarea diversității (max overlap = {max_overlap}).")
+    st.success(f"S-au generat {len(df)} variante.")
+    st.dataframe(df.head(10), height=300)
+    st.download_button("💾 Descarcă .txt", "\n".join([f"{i+1}, {c}" for i, c in enumerate(df['Combinație'])]),
+                       file_name="variante_keno.txt", mime="text/plain")
 
-    # Preview
-    st.dataframe(df.head(10), use_container_width=True, height=300)
+    st.session_state["tickets"] = all_tickets
 
-    # Copy all
-    txt_output = "\n".join([f"{i+1}, {' '.join(map(str, combo))}" for i, combo in enumerate(diverse_results)])
-    st.text_area("📋 Copy all", txt_output, height=200)
+# ----------------------------
+# Simulare Monte Carlo
+# ----------------------------
+st.subheader("🎲 Monte-Carlo Simulator")
+if "tickets" not in st.session_state:
+    st.info("Generează mai întâi variantele pentru a simula.")
+else:
+    if st.button("Rulează simulare"):
+        results = simulate_many_rounds(st.session_state["tickets"], n_rounds=sim_rounds, seed=seed or None)
 
-    # Export .txt
-    st.download_button(
-        label="💾 Descarcă variante (.txt)",
-        data=txt_output,
-        file_name="variante_keno.txt",
-        mime="text/plain"
-    )
+        st.success(f"✅ Simulare finalizată ({results['rounds']} runde).")
+        st.write(f"📈 Probabilitate ≥1 câștig: **{results['p_ge1']*100:.2f}%**")
+        st.write(f"📈 Probabilitate ≥2 câștiguri: **{results['p_ge2']*100:.2f}%**")
+        st.write(f"📊 Medie câștiguri / rundă: **{results['avg_wins']:.3f}**")
+
+        st.write("Distribuția numărului de câștiguri:")
+        st.bar_chart(results["distribution"].sort_index())
