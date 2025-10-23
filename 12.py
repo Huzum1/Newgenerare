@@ -32,8 +32,8 @@ def strategy_A(rounds, n=1400):
     """Greedy diversification: mix calde, medii, reci"""
     freq = freq_from_rounds(rounds)
     sorted_nums = sorted(freq.items(), key=lambda x: x[1], reverse=True)
-    hot = [x[0] for x in sorted_nums[:35]]
-    mid = [x[0] for x in sorted_nums[1:40]]
+    hot = [x[0] for x in sorted_nums[:15]]
+    mid = [x[0] for x in sorted_nums[25:40]]
     cold = [x[0] for x in sorted_nums[-9:]]
 
     combinations = []
