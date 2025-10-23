@@ -32,24 +32,24 @@ def strategy_A(rounds, n=100):
     """Greedy diversification: mix calde, medii, reci"""
     freq = freq_from_rounds(rounds)
     sorted_nums = sorted(freq.items(), key=lambda x: x[1], reverse=True)
-    hot = [x[0] for x in sorted_nums[:15]]
-    mid = [x[0] for x in sorted_nums[15:40]]
-    cold = [x[0] for x in sorted_nums[-15:]]
+    hot = [x[0] for x in sorted_nums[:25]]
+    mid = [x[0] for x in sorted_nums[27:48]]
+    cold = [x[0] for x in sorted_nums[-9:]]
 
     combinations = []
     for i in range(n):
-        combo = random.sample(hot, 3) + random.sample(mid, 3) + random.sample(cold, 3)
+        combo = random.sample(hot, 4) + random.sample(mid, 4) + random.sample(cold, 1)
         combinations.append(sorted(combo))
     return combinations
 
 def strategy_B(rounds, n=100):
     """Wheel combinational: nucleu fix + variații"""
     freq = freq_from_rounds(rounds)
-    core = [x for x, _ in sorted(freq.items(), key=lambda x: -x[1])[:5]]
+    core = [x for x, _ in sorted(freq.items(), key=lambda x: -x[1])[:6]]
     pool = [x for x in range(1, 67) if x not in core]
     combinations = []
     for i in range(n):
-        combo = core + random.sample(pool, 4)
+        combo = core + random.sample(pool, 5)
         combinations.append(sorted(combo))
     return combinations
 
@@ -57,9 +57,9 @@ def strategy_C(rounds, n=100):
     """Random echilibrat (4-5 pare, 3/3/3 pe zone)"""
     combinations = []
     while len(combinations) < n:
-        small = random.sample(range(1, 23), 3)
-        medium = random.sample(range(23, 45), 3)
-        large = random.sample(range(45, 67), 3)
+        small = random.sample(range(1, 27), 3)
+        medium = random.sample(range(15, 43), 3)
+        large = random.sample(range(35, 67), 3)
         combo = small + medium + large
         random.shuffle(combo)
         if 4 <= sum(x % 2 == 0 for x in combo) <= 5:
