@@ -28,7 +28,32 @@ def random_combination(low=1, high=66, size=9):
 # -------------------------------
 # 🔹 Strategii de generare
 # -------------------------------
-def strategy_C(rounds, n=999):
+def strategy_A(rounds, n=100):
+    """Greedy diversification: mix calde, medii, reci"""
+    freq = freq_from_rounds(rounds)
+    sorted_nums = sorted(freq.items(), key=lambda x: x[1], reverse=True)
+    hot = [x[0] for x in sorted_nums[:15]]
+    mid = [x[0] for x in sorted_nums[15:40]]
+    cold = [x[0] for x in sorted_nums[-15:]]
+
+    combinations = []
+    for i in range(n):
+        combo = random.sample(hot, 3) + random.sample(mid, 3) + random.sample(cold, 3)
+        combinations.append(sorted(combo))
+    return combinations
+
+def strategy_B(rounds, n=100):
+    """Wheel combinational: nucleu fix + variații"""
+    freq = freq_from_rounds(rounds)
+    core = [x for x, _ in sorted(freq.items(), key=lambda x: -x[1])[:5]]
+    pool = [x for x in range(1, 67) if x not in core]
+    combinations = []
+    for i in range(n):
+        combo = core + random.sample(pool, 4)
+        combinations.append(sorted(combo))
+    return combinations
+
+def strategy_C(rounds, n=100):
     """Random echilibrat (4-5 pare, 3/3/3 pe zone)"""
     combinations = []
     while len(combinations) < n:
