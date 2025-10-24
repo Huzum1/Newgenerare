@@ -1,99 +1,172 @@
 import streamlit as st
 import pandas as pd
 import random
-from collections import Counter
-import io
+from io import StringIO
 
-st.set_page_config(page_title="Strategii 4/4", page_icon="🎯", layout="wide")
+# -------------------------------
+# 🔹 Funcții de utilitate
+# -------------------------------
+def parse_rounds(text):
+    """Transformă textul de runde în listă de liste de numere"""
+    rounds = []
+    for line in text.strip().split("\n"):
+        numbers = [int(x.strip()) for x in line.replace(",", " ").split() if x.strip().isdigit()]
+        if len(numbers) == 12:  # asigurăm formatul 12/66
+            rounds.append(numbers)
+    return rounds
 
-st.title("🎯 Strategii 4/4 – Generator inteligent de combinații")
-st.write("Analizează runde istorice și generează 1000 de combinații posibile pentru o șansă de 4/4.")
+def freq_from_rounds(rounds):
+    """Returnează frecvența numerelor"""
+    flat = [n for r in rounds for n in r]
+    return pd.Series(flat).value_counts().to_dict()
 
-# ===== 1. Încărcare fișier =====
-uploaded_file = st.file_uploader("📤 Încarcă fișierul cu runde (TXT sau CSV)", type=["txt", "csv"])
+# -------------------------------
+# 🔹 Strategii de generare 4/4
+# -------------------------------
+def strategy_A(rounds, n=100, low=1, high=66):
+    """Echilibru: calde + medii + reci"""
+    freq = freq_from_rounds(rounds)
+    sorted_nums = sorted(freq.items(), key=lambda x: x[1], reverse=True)
+    hot = [x[0] for x in sorted_nums[:15]]
+    mid = [x[0] for x in sorted_nums[15:40]]
+    cold = [x[0] for x in sorted_nums[-15:]]
 
+    combinations = []
+    for _ in range(n):
+        combo = random.sample(hot, 1) + random.sample(mid, 2) + random.sample(cold, 1)
+        combinations.append(sorted(combo))
+    return combinations
+
+def strategy_B(rounds, n=100, low=1, high=66):
+    """Wheel: nucleu fix + variații"""
+    freq = freq_from_rounds(rounds)
+    core = [x for x, _ in sorted(freq.items(), key=lambda x: -x[1])[:2]]
+    pool = [x for x in range(low, high + 1) if x not in core]
+    combinations = []
+    for _ in range(n):
+        combo = core + random.sample(pool, 2)
+        combinations.append(sorted(combo))
+    return combinations
+
+def strategy_C(rounds, n=100, low=1, high=66):
+    """Random echilibrat (2 pare + 2 impare)"""
+    combinations = []
+    while len(combinations) < n:
+        even_nums = [x for x in range(low, high + 1) if x % 2 == 0]
+        odd_nums = [x for x in range(low, high + 1) if x % 2 == 1]
+        combo = random.sample(even_nums, 2) + random.sample(odd_nums, 2)
+        combinations.append(sorted(combo))
+    return combinations
+
+# -------------------------------
+# 🔹 Funcție verificare 4/4
+# -------------------------------
+def check_matches(generated, rounds):
+    """Verifică câte combinații 4/4 se regăsesc în rundele istorice"""
+    matches = []
+    for idx, combo in enumerate(generated, start=1):
+        for ridx, r in enumerate(rounds, start=1):
+            if set(combo).issubset(set(r)):
+                matches.append((idx, ridx, combo))
+                break
+    return matches
+
+# -------------------------------
+# 🔹 UI Streamlit
+# -------------------------------
+st.set_page_config(page_title="Strategii 4/4 Loteria 12/66", layout="wide")
+st.title("🎯 Strategii 4/4 – Loteria 12/66")
+
+st.sidebar.header("⚙️ Configurare")
+
+strategy = st.sidebar.selectbox(
+    "Alege strategia de generare:",
+    ["A - Echilibru ponderat (calde/reci)",
+     "B - Nucleu fix + variații",
+     "C - Random echilibrat (2 pare, 2 impare)"]
+)
+num_variants = st.sidebar.number_input("Număr variante de generat:", 10, 5000, 1000)
+
+# -------------------------------
+# 🔹 Import runde
+# -------------------------------
+st.subheader("📂 Importă sau adaugă runde 12/66")
+uploaded_file = st.file_uploader("Încarcă fișier .txt cu runde (ex: 12 numere pe linie)", type="txt")
+manual_input = st.text_area("Adaugă runde manual (una pe linie, format: 1, 5, 14, 22, 33, ... 12 numere)")
+
+rounds = []
 if uploaded_file:
-    try:
-        rounds = []
-        for line in uploaded_file:
-            line = line.decode("utf-8").strip()
-            if line:
-                rounds.append(list(map(int, line.replace(" ", "").split(","))))
-        st.success(f"✅ S-au încărcat {len(rounds)} runde cu {len(rounds[0])} numere fiecare.")
-    except Exception as e:
-        st.error(f"Eroare la citire: {e}")
-        st.stop()
+    text_data = uploaded_file.read().decode("utf-8")
+    rounds = parse_rounds(text_data)
+elif manual_input.strip():
+    rounds = parse_rounds(manual_input)
 
-    # ===== 2. Analiză frecvență =====
-    all_nums = [n for r in rounds for n in r]
-    freq = Counter(all_nums)
-    freq_df = pd.DataFrame(freq.items(), columns=["Număr", "Frecvență"]).sort_values("Frecvență", ascending=False)
-    with st.expander("📊 Vezi frecvența numerelor"):
-        st.dataframe(freq_df, use_container_width=True)
+if not rounds:
+    st.warning("🔸 Încarcă sau introdu cel puțin o rundă (12 numere) pentru a continua.")
+    st.stop()
 
-    # ===== 3. Setări =====
-    st.subheader("⚙️ Setări generator")
-    top = st.slider("Câte numere frecvente (Top) să folosim?", 10, 40, 20)
-    mid = st.slider("Câte numere medii (Mid) să includem?", 10, 40, 20)
-    low = st.slider("Câte numere rare (Low) să includem?", 5, 30, 15)
+st.success(f"✅ {len(rounds)} runde încărcate (format 12/66).")
 
-    # ===== 4. Generare =====
-    if st.button("🔮 Generează 1000 de variante"):
-        sorted_nums = [n for n, _ in freq.most_common()]
-        variants = []
-        while len(variants) < 1000:
-            nums = []
-            nums += random.sample(sorted_nums[:top], 2)
-            nums.append(random.choice(sorted_nums[top:top+mid]))
-            nums.append(random.choice(sorted_nums[-low:]))
-            variant = tuple(sorted(set(nums)))
-            if len(variant) == 4:
-                variants.append(variant)
+# -------------------------------
+# 🔹 Generare combinații
+# -------------------------------
+st.subheader("🧠 Generare variante 4/4")
 
-        # ===== 5. Verificare 4/4 =====
-        hits = 0
-        for v in variants:
-            for r in rounds:
-                if set(v).issubset(r):
-                    hits += 1
-                    break
+if st.button("🚀 Generează și verifică 4/4"):
+    # Generare
+    if strategy.startswith("A"):
+        results = strategy_A(rounds, num_variants)
+    elif strategy.startswith("B"):
+        results = strategy_B(rounds, num_variants)
+    else:
+        results = strategy_C(rounds, num_variants)
 
-        st.success(f"🎉 Din 1000 de variante generate, {hits} obțin 4/4!")
+    df = pd.DataFrame({
+        "ID": range(1, len(results) + 1),
+        "Combinație": [" ".join(map(str, r)) for r in results]
+    })
 
-        # ===== 6. Creare tabel cu ID-uri =====
-        df_var = pd.DataFrame({
-            "ID": range(1, len(variants) + 1),
-            "Combinație": [" ".join(map(str, v)) for v in variants]
-        })
+    # Verificare 4/4
+    matches = check_matches(results, rounds)
+    st.success(f"🎉 Din {len(results)} variante generate, **{len(matches)}** se potrivesc complet 4/4 cu rundele istorice!")
 
-        # ===== 7. Afișare preview =====
-        st.subheader("👁️‍🗨️ Preview – primele 10 variante")
-        st.dataframe(df_var.head(10), use_container_width=True, height=300)
+    # Dacă există potriviri, le afișăm
+    if matches:
+        matched_df = pd.DataFrame([
+            {"ID Variantă": m[0], "Rundă Potrivită": m[1], "Combinație": " ".join(map(str, m[2]))}
+            for m in matches
+        ])
+        with st.expander("✅ Vezi potrivirile 4/4"):
+            st.dataframe(matched_df, use_container_width=True)
 
-        # ===== 8. Scroll complet =====
-        with st.expander("📜 Vezi toate cele 1000 de variante"):
-            st.dataframe(df_var, use_container_width=True, height=600)
+    # Preview + scroll
+    st.markdown("### 👁️‍🗨️ Primele 10 variante")
+    st.dataframe(df.head(10), use_container_width=True, height=280)
 
-        # ===== 9. Buton Copy All =====
-        all_text = "\n".join([f"({row.ID}, {row.Combinație})" for _, row in df_var.iterrows()])
+    with st.expander("📜 Vezi toate variantele generate"):
+        st.dataframe(df, use_container_width=True, height=600)
 
-        st.text_area("📋 Toate variantele (poți copia manual sau folosește butonul de mai jos):",
-                     all_text, height=200)
+    # Copy all
+    all_text = "\n".join([f"({row.ID}, {row.Combinație})" for _, row in df.iterrows()])
+    st.text_area("📋 Toate variantele (pentru copy)", all_text, height=250)
 
-        st.button("📄 Copy all variants", help="Selectează tot textul de mai sus și apasă Ctrl+C / Cmd+C pentru a copia.")
+    # Copy button (JS)
+    copy_button = f"""
+        <button onclick="navigator.clipboard.writeText(`{all_text}`)"
+                style="background-color:#4CAF50;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;">
+            📄 Copy all variants
+        </button>
+    """
+    st.markdown(copy_button, unsafe_allow_html=True)
 
-        # ===== 10. Export CSV =====
-        csv_buf = io.StringIO()
-        df_var.to_csv(csv_buf, index=False)
-        st.download_button(
-            "💾 Descarcă variantele (CSV)",
-            data=csv_buf.getvalue(),
-            file_name="variante_4din4.csv",
-            mime="text/csv"
-        )
-
-else:
-    st.info("📂 Încarcă fișierul tău cu runde (ex: 1300runde.txt) pentru a începe.")
+    # Export .txt
+    txt_output = "\n".join([f"({i+1}, {' '.join(map(str, combo))})" for i, combo in enumerate(results)])
+    st.download_button(
+        label="💾 Descarcă variante (.txt)",
+        data=txt_output,
+        file_name="variante_4din4_12din66.txt",
+        mime="text/plain"
+    )
 
 st.markdown("---")
-st.caption("© 2025 Strategii 4/4 – Creat cu ❤️ în Streamlit.")
+st.caption("© 2025 Strategii 4/4 – Loteria 12/66 – Creat cu ❤️ în Streamlit.")
