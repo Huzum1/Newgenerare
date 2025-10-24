@@ -11,7 +11,7 @@ def parse_rounds(text):
     rounds = []
     for line in text.strip().split("\n"):
         numbers = [int(x.strip()) for x in line.replace(",", " ").split() if x.strip().isdigit()]
-        if len(numbers) == 12:  # asigurăm formatul 12/66
+        if len(numbers) == 12:  # loteria 12/66
             rounds.append(numbers)
     return rounds
 
@@ -130,7 +130,6 @@ if st.button("🚀 Generează și verifică 4/4"):
     matches = check_matches(results, rounds)
     st.success(f"🎉 Din {len(results)} variante generate, **{len(matches)}** se potrivesc complet 4/4 cu rundele istorice!")
 
-    # Dacă există potriviri, le afișăm
     if matches:
         matched_df = pd.DataFrame([
             {"ID Variantă": m[0], "Rundă Potrivită": m[1], "Combinație": " ".join(map(str, m[2]))}
@@ -139,18 +138,19 @@ if st.button("🚀 Generează și verifică 4/4"):
         with st.expander("✅ Vezi potrivirile 4/4"):
             st.dataframe(matched_df, use_container_width=True)
 
-    # Preview + scroll
+    # --- Preview ---
     st.markdown("### 👁️‍🗨️ Primele 10 variante")
     st.dataframe(df.head(10), use_container_width=True, height=280)
 
+    # --- Scroll complet ---
     with st.expander("📜 Vezi toate variantele generate"):
         st.dataframe(df, use_container_width=True, height=600)
 
-    # Copy all
-    all_text = "\n".join([f"({row.ID}, {row.Combinație})" for _, row in df.iterrows()])
+    # --- Copy all ---
+    all_text = "\n".join([f"{row.ID}, {row.Combinație}" for _, row in df.iterrows()])
     st.text_area("📋 Toate variantele (pentru copy)", all_text, height=250)
 
-    # Copy button (JS)
+    # --- Copy button (JS) ---
     copy_button = f"""
         <button onclick="navigator.clipboard.writeText(`{all_text}`)"
                 style="background-color:#4CAF50;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;">
@@ -159,8 +159,8 @@ if st.button("🚀 Generează și verifică 4/4"):
     """
     st.markdown(copy_button, unsafe_allow_html=True)
 
-    # Export .txt
-    txt_output = "\n".join([f"({i+1}, {' '.join(map(str, combo))})" for i, combo in enumerate(results)])
+    # --- Export .txt ---
+    txt_output = "\n".join([f"{i+1}, {' '.join(map(str, combo))}" for i, combo in enumerate(results)])
     st.download_button(
         label="💾 Descarcă variante (.txt)",
         data=txt_output,
